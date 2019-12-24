@@ -11,14 +11,17 @@ let reverse = false;
 let defaultColor;
 let desiredColor;
 let tmp = 0;
+let colorsSwapped=false;
+let nextPathIndex = 0;
+let allPaths=[];
 function setup()
 {
   createCanvas(400,400);
   angleMode(DEGREES);
   ellipseMode(CENTER);
   r=150;
-  defaultColor = color(255,0,0);
-  desiredColor = color(255,255,0);
+  defaultColor = color(100,150,200);
+  desiredColor = color(200,200,100);
   for(let i=-45;i<315;i+=res)
   {
     circlePath.push(createVector(cos(i)*r,sin(i)*r));
@@ -40,7 +43,7 @@ function setup()
 
   trianglePath = createPath(trianglePath);
 
-  r*=0.75;
+  //r*=0.75;
   hexagonPath.push(createVector(cos(0)*r,sin(0)*r));
   hexagonPath.push(createVector(cos(60)*r,sin(60)*r));
   hexagonPath.push(createVector(cos(120)*r,sin(120)*r));
@@ -49,6 +52,14 @@ function setup()
   hexagonPath.push(createVector(cos(300)*r,sin(300)*r));
 
   hexagonPath = createPath(hexagonPath);
+
+  defaultColor = swap(defaultColor,defaultColor=desiredColor);
+  desiredColor = swap(defaultColor,defaultColor=desiredColor);
+
+  allPaths.push(rectPath);
+  allPaths.push(trianglePath);
+  allPaths.push(hexagonPath);
+  nextPath = allPaths[nextPathIndex];
 }
 
 function draw()
@@ -58,20 +69,17 @@ function draw()
   strokeWeight(4);
   noFill();
   updateVertices();
-
-
-  let c = currentShape[0].copy();
-  let d = desiredShapeArray[0].copy();
-  let l = lastShape[0].copy();
-
-  let fulldist = dist(d.x,d.y,l.x,l.y);
-  let lastdist = dist(l.x,l.y,c.x,c.y);
-  let currdist = dist(d.x,d.y,c.x,c.y);
-  tmp = currdist/fulldist;
-  //console.log(fulldist+" "+lastdist+" "+currdist);
-
-
   stroke(lerpColor(defaultColor,desiredColor,tmp));
+
+
+  let c = currentShape[17].copy();
+  let d = desiredShapeArray[17].copy();
+  let l = lastShape[17].copy();
+  let fulldist = dist(l.x,l.y,d.x,d.y);
+  let currdist = dist(l.x,l.y,c.x,c.y);
+
+  tmp = currdist/fulldist;
+
   beginShape();
   for(let point of currentShape)
   {
@@ -83,14 +91,6 @@ function draw()
   {
     //ellipse(point.x,point.y,10);
   }
-  if(tmp>1)
-  {
-    defaultColor = swap(defaultColor,defaultColor=desiredColor);
-    desiredColor = swap(defaultColor,defaultColor=desiredColor);
-    tmp =0;
-    console.log("swap");
-  }
-
 }
 
 Array.prototype.insert = function(index) {
@@ -134,30 +134,42 @@ function updateVertices()
     i%2 ? stroke(150,100,200,64) : stroke(200,100,150,64);
     //line(c.x,c.y,d.x,d.y);
     let vec;
-    vec = d.sub(c).setMag(distance*0.01);
+    vec = d.sub(c).setMag(distance*0.1);
     currentShape[i].add(vec);
   }
   if(finished)
   {
+    lastShape = desiredShapeArray.slice();
+    colorsSwapped = false;
+    nextPathIndex = (nextPathIndex+1)%allPaths.length;
     if(reverse)
     {
-      lastShape = desiredShapeArray.slice();
       setTimeout(()=>
       {
+        if(!colorsSwapped)
+        {
+          defaultColor = swap(defaultColor,defaultColor=desiredColor);
+          desiredColor = swap(defaultColor,defaultColor=desiredColor);
+          colorsSwapped = true;
+        }
         desiredShapeArray = circlePath.slice();
         reverse = false;
       },31);
     }
     else
     {
-      lastShape = desiredShapeArray.slice();
       setTimeout(()=>
       {
-        desiredShapeArray = hexagonPath.slice();
+        if(!colorsSwapped)
+        {
+          defaultColor = swap(defaultColor,defaultColor=desiredColor);
+          desiredColor = swap(defaultColor,defaultColor=desiredColor);
+          colorsSwapped = true;
+        }
+        desiredShapeArray = allPaths[nextPathIndex];
         reverse = true;
       },31);
     }
-
   }
 }
 
