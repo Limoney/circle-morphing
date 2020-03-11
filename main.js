@@ -1,33 +1,21 @@
-let r = 100;
-let circlePath = [];
+let r = 150;
+let circlePath_old = [];
 let rectPath = [];
 let trianglePath = []
 let currentShape = [];
 let hexagonPath = [];
+let ms;
+let bs1,bs2,bs3,bs4;
 let res = 10;
-let desiredShapeArray = [];
-let lastShape = [];
-let reverse = false;
-let defaultColor;
-let desiredColor;
-let tmp = 0;
-let colorsSwapped=false;
-let nextPathIndex = 0;
-let allPaths=[];
+let theta = 0;
 function setup()
 {
   createCanvas(400,400);
   angleMode(DEGREES);
   ellipseMode(CENTER);
-  r=150;
-  defaultColor = color(100,150,200);
-  desiredColor = color(200,200,100);
   for(let i=-45;i<315;i+=res)
   {
-    circlePath.push(createVector(cos(i)*r,sin(i)*r));
-    currentShape.push(createVector(cos(i)*r,sin(i)*r));
-    desiredShapeArray.push(createVector(cos(i)*r,sin(i)*r));
-    lastShape.push(createVector(cos(i)*r,sin(i)*r));
+    circlePath_old.push(createVector(cos(i)*r,sin(i)*r));
   }
 
   rectPath.push(createVector(cos(45)*r,sin(-45)*r));
@@ -35,15 +23,11 @@ function setup()
   rectPath.push(createVector(cos(135)*r,sin(45)*r));
   rectPath.push(createVector(cos(135)*r,sin(-45)*r));
 
-  rectPath = createPath(rectPath);
+  trianglePath.push(createVector(cos(90)*r,sin(-90)*r));
+  trianglePath.push(createVector(cos(30)*r,sin(30)*r));
+  trianglePath.push(createVector(cos(150)*r,sin(30)*r));
+  //trianglePath.push(createVector(cos(120)*r,sin(120)*r));
 
-  trianglePath.push(createVector(0,sin(-45)*r));
-  trianglePath.push(createVector(cos(45)*r,sin(45)*r));
-  trianglePath.push(createVector(cos(135)*r,sin(45)*r));
-
-  trianglePath = createPath(trianglePath);
-
-  //r*=0.75;
   hexagonPath.push(createVector(cos(0)*r,sin(0)*r));
   hexagonPath.push(createVector(cos(60)*r,sin(60)*r));
   hexagonPath.push(createVector(cos(120)*r,sin(120)*r));
@@ -51,46 +35,40 @@ function setup()
   hexagonPath.push(createVector(cos(240)*r,sin(240)*r));
   hexagonPath.push(createVector(cos(300)*r,sin(300)*r));
 
-  hexagonPath = createPath(hexagonPath);
+  //classes
 
-  defaultColor = swap(defaultColor,defaultColor=desiredColor);
-  desiredColor = swap(defaultColor,defaultColor=desiredColor);
 
-  allPaths.push(rectPath);
-  allPaths.push(trianglePath);
-  allPaths.push(hexagonPath);
-  nextPath = allPaths[nextPathIndex];
+  bs1 = new BasicShape(rectPath,color(100,150,200),"rect");
+  bs1.create(circlePath_old);
+
+  bs2 = new BasicShape(circlePath_old,color(200,150,100),"circle");
+  bs2.create(circlePath_old);
+
+  bs3 = new BasicShape(hexagonPath,color(150,200,100),"hexagon");
+  bs3.create(circlePath_old);
+
+  bs4 = new BasicShape(trianglePath,color(100,200,150),"triangle");
+  bs4.create(circlePath_old);
+
+  ms = new MorphableShape(circlePath_old);
+  //ms.morphFrom(bs2);
+  //ms.morphTo(bs4);
+  ms.useMorphingSequence([bs2,bs1,bs2,bs3,bs2,bs4]);// smoething is not right with order in first cycle
 }
 
 function draw()
 {
   translate(width/2,height/2);
   background(51);
-  strokeWeight(4);
+  //clear();
+  strokeWeight(10);
   noFill();
-  updateVertices();
-  stroke(lerpColor(defaultColor,desiredColor,tmp));
-
-
-  let c = currentShape[17].copy();
-  let d = desiredShapeArray[17].copy();
-  let l = lastShape[17].copy();
-  let fulldist = dist(l.x,l.y,d.x,d.y);
-  let currdist = dist(l.x,l.y,c.x,c.y);
-
-  tmp = currdist/fulldist;
-
-  beginShape();
-  for(let point of currentShape)
-  {
-    //ellipse(point.x,point.y,5);
-    vertex(point.x,point.y);
-  }
-  endShape(CLOSE);
-  for(let point of lastShape)
-  {
-    //ellipse(point.x,point.y,10);
-  }
+  rotate(theta);
+  //bs4.showVertices();
+  //bs2.showVertices();
+  ms.update();
+  ms.showShape();
+  //theta+=0.9;
 }
 
 Array.prototype.insert = function(index) {
@@ -101,76 +79,23 @@ Array.prototype.insert = function(index) {
     return this;
 };
 
-function createPath(vertices)
-{
-  let verticesCopy = vertices.slice();
-  for(let i=0;i<vertices.length;i++)
-  {
-    let current = vertices[i].copy();
-    let next = vertices[(i+1)%vertices.length].copy();
-    let distance = dist(current.x,current.y,next.x,next.y);
-    let dir = next.copy().sub(current).normalize();
-    let segmentCount = circlePath.length/vertices.length;
-    let segments = [];
-    let jump = distance/segmentCount;
-    for(let j=1;j<segmentCount;j++)
-    {
-      let nextstep = dir.copy().mult(jump*j);
-      segments.push(current.copy().add(nextstep));
+function deepCopy(src) {
+  let target = {};
+  for (let prop in src) {
+    if (src.hasOwnProperty(prop)) {
+      // if the value is a nested object, recursively copy all it's properties
+      if (isObject(src[prop])) {
+        target[prop] = deepCopy(src[prop]);
+      } else {
+        target[prop] = src[prop];
+      }
     }
-    verticesCopy.insert(i*segmentCount,segments);
   }
-  return verticesCopy;
+  return target;
 }
-function updateVertices()
-{
-  let finished = true;
-  for(let i=0;i<circlePath.length;i++)
-  {
-    let c = currentShape[i].copy();
-    let d = desiredShapeArray[i].copy();
-    let distance = dist(c.x,c.y,d.x,d.y);
-    if(distance>1) finished = false;
-    i%2 ? stroke(150,100,200,64) : stroke(200,100,150,64);
-    //line(c.x,c.y,d.x,d.y);
-    let vec;
-    vec = d.sub(c).setMag(distance*0.1);
-    currentShape[i].add(vec);
-  }
-  if(finished)
-  {
-    lastShape = desiredShapeArray.slice();
-    colorsSwapped = false;
-    nextPathIndex = (nextPathIndex+1)%allPaths.length;
-    if(reverse)
-    {
-      setTimeout(()=>
-      {
-        if(!colorsSwapped)
-        {
-          defaultColor = swap(defaultColor,defaultColor=desiredColor);
-          desiredColor = swap(defaultColor,defaultColor=desiredColor);
-          colorsSwapped = true;
-        }
-        desiredShapeArray = circlePath.slice();
-        reverse = false;
-      },31);
-    }
-    else
-    {
-      setTimeout(()=>
-      {
-        if(!colorsSwapped)
-        {
-          defaultColor = swap(defaultColor,defaultColor=desiredColor);
-          desiredColor = swap(defaultColor,defaultColor=desiredColor);
-          colorsSwapped = true;
-        }
-        desiredShapeArray = allPaths[nextPathIndex];
-        reverse = true;
-      },31);
-    }
-  }
-}
+function isObject(obj) {
+  var type = typeof obj;
+  return type === 'function' || type === 'object' && !!obj;
+};
 
 function swap(x){return x}
